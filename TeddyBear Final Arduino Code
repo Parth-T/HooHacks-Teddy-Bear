@@ -1,0 +1,136 @@
+#include <Wire.h>
+#include "MAX30105.h"
+#include "heartRate.h"
+
+const int motor1 = 5;  // Motor 1 pin (PWM capable)
+const int motor2 = 6;  // Motor 2 pin (PWM capable)
+const int button = 3;  // Button pin
+int pressCount = 0;
+
+MAX30105 particleSensor;
+bool sensorAvailable = true;
+
+void setup() {
+    pinMode(motor1, OUTPUT);
+    pinMode(motor2, OUTPUT);
+    pinMode(button, INPUT_PULLUP);
+    Serial.begin(9600);
+    
+    if (!particleSensor.begin(Wire, I2C_SPEED_STANDARD)) {
+        Serial.println("heart rate monitoring.");
+        sensorAvailable = false;
+    } else {
+        particleSensor.setup();
+        particleSensor.setPulseAmplitudeRed(0x0A);
+        particleSensor.setPulseAmplitudeIR(0x0A);
+    }
+}
+
+void loop() {
+    pressCount = 0;
+    Serial.println("Waiting for button presses...");
+    unsigned long startTime = millis();
+
+    while (millis() - startTime < 3000) {  // 3-sec window for button presses
+        if (digitalRead(button) == LOW) {
+            pressCount++;
+            Serial.print("Button pressed: ");
+            Serial.println(pressCount);
+            delay(300);  // Debounce delay
+            while (digitalRead(button) == LOW);  // Wait for release
+        }
+    }
+    
+    Serial.print("Executing pattern for ");
+    Serial.print(pressCount);
+    Serial.println(" presses");
+    playPattern(pressCount);
+    
+    // Separate heart rate monitoring only if the sensor is available
+    if (sensorAvailable) {
+        monitorHeartRate();
+    } else {
+        Serial.println("heart rate monitoring");
+    }
+}
+
+void playPattern(int count) {
+    unsigned long startTime = millis();
+    while (millis() - startTime < 60000) {  // Run pattern for 1 minute
+        switch (count) {
+            case 5:
+                analogWrite(motor1, 128); // Medium intensity
+                delay(500);
+                analogWrite(motor1, 0);
+                delay(250);
+                break;
+            case 4:
+                analogWrite(motor1, 110); // High intensity
+                delay(800);
+                analogWrite(motor1, 0);
+                delay(200);
+                break;
+            case 3:
+                analogWrite(motor1, 200);
+                analogWrite(motor2, 80);
+                delay(700);
+                analogWrite(motor1, 0);
+                analogWrite(motor2, 0);
+                delay(300);
+                break;
+            case 2:
+                analogWrite(motor1, 120);
+                analogWrite(motor2, 90);
+                delay(600);
+                analogWrite(motor1, 0);
+                analogWrite(motor2, 0);
+                delay(400);
+                break;
+            case 1:
+                analogWrite(motor1, 100);
+                analogWrite(motor2, 100);
+                delay(750);
+                analogWrite(motor1, 0);
+                analogWrite(motor2, 0);
+                delay(750);
+                break;
+            default:
+                analogWrite(motor1, 70);
+                analogWrite(motor2, 70);
+                Serial.println("No vibration pattern");
+                return;
+        }
+    }
+}
+
+void monitorHeartRate() {
+    float heartRate = getHeartRate();
+    if (heartRate > 0) {
+        int intensity = map(heartRate, 60, 120, 100, 255);  // scale heart rate to motor intensity
+        analogWrite(motor1, intensity);
+        analogWrite(motor2, intensity);
+        delay(700);
+        analogWrite(motor1, 0);
+        analogWrite(motor2, 0);
+        delay(300);
+    } else {
+        playPattern(4); // default case if no heart rate detected
+    }
+}
+
+float getHeartRate() {
+    if (!sensorAvailable) return 0;
+    
+    long irValue = particleSensor.getIR();
+    if (checkForBeat(irValue)) {
+        static float beatsPerMinute = 0;
+        static long lastBeat = 0;
+        long delta = millis() - lastBeat;
+        lastBeat = millis();
+        beatsPerMinute = 60 / (delta / 1000.0);
+        Serial.print("Heart Rate: ");
+        Serial.println(beatsPerMinute);
+        return beatsPerMinute;
+    }
+    return 0;  // Return 0 if no valid readings
+}
