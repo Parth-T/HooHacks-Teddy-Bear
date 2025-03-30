@@ -1,0 +1,89 @@
+const int motor1 = 5;  // Motor 1 pin (PWM capable)
+const int motor2 = 6;  // Motor 2 pin (PWM capable)
+const int button = 3;  // Button pin
+int pressCount = 0;
+unsigned long startTime = 0;
+
+void setup() {
+    pinMode(motor1, OUTPUT);
+    pinMode(motor2, OUTPUT);
+    pinMode(button, INPUT_PULLUP);
+    Serial.begin(9600);
+}
+
+void loop() {
+    pressCount = 0;
+    startTime = millis();
+    
+    while (millis() - startTime < 1000) {  // 1-second window for button presses
+        if (digitalRead(button) == LOW) {
+            pressCount++;
+            delay(300);  // Debounce delay
+            while (digitalRead(button) == LOW);  // Wait for release
+        }
+    }
+    
+    Serial.print("Button pressed: ");
+    Serial.println(pressCount);
+    playPattern(pressCount);
+}
+
+void playPattern(int count) {
+    Serial.print("Executing pattern for ");
+    Serial.print(count);
+    Serial.println(" presses");
+    
+    switch (count) {
+        case 5:
+            for (int i = 0; i < 5; i++) {
+                analogWrite(motor1, 128); // Medium intensity (50%)
+                delay(500);
+                analogWrite(motor1, 0);
+                delay(250);
+            }
+            break;
+        case 4:
+            for (int i = 0; i < 4; i++) {
+                analogWrite(motor1, 200); // High intensity (~80%)
+                delay(800);
+                analogWrite(motor1, 0);
+                delay(200);
+            }
+            break;
+        case 3:
+            for (int i = 0; i < 3; i++) {
+                analogWrite(motor1, 200);
+                analogWrite(motor2, 200);
+                delay(700);
+                analogWrite(motor1, 0);
+                analogWrite(motor2, 0);
+                delay(300);
+            }
+            break;
+        case 2:
+            for (int i = 0; i < 2; i++) {
+                analogWrite(motor1, 180);
+                analogWrite(motor2, 180);
+                delay(600);
+                analogWrite(motor1, 0);
+                analogWrite(motor2, 0);
+                delay(400);
+            }
+            break;
+        case 1:
+            for (int i = 0; i < 4; i++) {
+                analogWrite(motor1, 150);
+                analogWrite(motor2, 150);
+                delay(750);
+                analogWrite(motor1, 0);
+                analogWrite(motor2, 0);
+                delay(750);
+            }
+            break;
+        default:
+            analogWrite(motor1, 0);
+            analogWrite(motor2, 0);
+            Serial.println("No vibration pattern");
+            break;
+    }
+}
