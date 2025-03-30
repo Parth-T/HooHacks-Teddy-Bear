@@ -1,0 +1,98 @@
+import math
+
+# Define stopwords to remove from the text
+STOPWORDS = set([
+    "i", "am", "the", "to", "and", "a", "of", "it", "you", "in", "that", "this", 
+    "for", "on", "with", "by", "my", "is", "are", "was", "were", "me", "we", "us"
+])
+
+# Full training texts and responses
+training_texts = [
+    "I miss my mom", "I miss my dad", "I miss my brother", "I miss my sister", "I miss my grandparents",
+    "I'm scared", "I'm scared of the dark", "I'm scared of being alone", "I'm scared of failing", "I'm scared of trying new things",
+    "I feel lonely", "I feel like no one understands me", "I feel invisible", "I feel forgotten", "I feel like no one cares",
+    "I'm happy", "I'm excited", "I'm proud of myself", "I feel loved", "I feel appreciated",
+    "I'm sad", "I'm feeling down", "I feel empty", "I feel like crying", "I feel like giving up",
+    "I'm anxious", "I'm worried about school", "I'm worried about my friends", "I'm worried about my future", "I'm worried about my health",
+    "I'm frustrated", "I'm angry", "I'm mad at my friends", "I'm mad at my family", "I feel like no one listens to me",
+    "I'm bored", "I don't know what to do", "Nothing excites me anymore", "Everything feels the same", "I want to try something new",
+    "I'm tired", "I feel exhausted", "I just want to sleep", "I feel drained", "I don't have any energy",
+    "I feel hopeless", "I feel like nothing will ever change", "I feel like I'm stuck", "I don't see a way out", "I feel defeated",
+    "I feel overwhelmed", "Everything is too much", "I can't handle this", "I feel like I have too many responsibilities", "I feel like I'm drowning",
+    "I feel sick", "I don't feel well", "My stomach hurts", "My head hurts", "I feel weak",
+    "I'm in pain", "My heart hurts", "I feel heartbroken", "I'm hurting inside", "I don't know how to stop hurting",
+    "I'm feeling lost", "I don't know what to do next", "I feel like I'm wandering with no direction", "I feel like I'm going nowhere", "I don't know what my purpose is",
+    "I'm feeling grateful", "I'm thankful for my family", "I'm thankful for my friends", "I feel lucky", "I appreciate the little things",
+    "I feel ignored", "I feel like no one notices me", "I feel unimportant", "I feel like I'm always overlooked", "I feel like I don't matter",
+    "I feel discouraged", "I feel like I can't do anything right", "I feel like a failure", "I feel like giving up", "I feel like I'm not good enough",
+    "I feel confident", "I believe in myself", "I feel like I can do anything", "I'm proud of what I've accomplished", "I feel unstoppable",
+    "I'm feeling creative", "I have so many ideas", "I want to create something new", "I love expressing myself", "Creativity makes me happy",
+    "I feel trapped", "I feel like I have no freedom", "I feel stuck in my thoughts", "I feel like I can't escape my situation", "I feel like I'm suffocating",
+    "I feel free", "I feel like I can do anything", "I feel like the world is open to me", "I feel like I can spread my wings", "I feel unchained",
+    "I'm feeling optimistic", "I believe in a better future", "I have hope", "I feel like good things are coming", "I know everything will be okay",
+    "I'm feeling nostalgic", "I miss the past", "I miss how things used to be", "I wish I could go back in time", "I miss my childhood",
+    "I'm feeling guilty", "I did something wrong", "I feel bad about what I said", "I regret my actions", "I want to make things right",
+    "I'm feeling embarrassed", "I said something dumb", "I made a mistake in front of everyone", "People are laughing at me", "I feel like hiding",
+    "I feel proud", "I accomplished something big", "I feel good about myself", "I'm proud of my hard work", "I'm proud of my family",
+    "I feel motivated", "I want to work hard", "I'm determined to succeed", "I feel inspired", "I'm ready to achieve my goals",
+    "I'm feeling insecure", "I don't like how I look", "I feel like I'm not good enough", "I compare myself to others too much", "I feel like everyone is better than me",
+    "I feel safe", "I feel protected", "I feel like nothing can hurt me", "I feel comforted", "I feel like I'm in good hands",
+    "I feel uncomfortable", "This situation makes me uneasy", "I don't like being here", "I want to leave", "Something doesn't feel right",
+    "I feel hopeful", "I know things will get better", "I have faith in myself", "I believe in a brighter tomorrow", "I trust that everything will work out",
+]
+
+responses = [
+    "It's okay, sweetheart. Mom will be back soon!", "Dad misses you too!", "Your brother loves you!", "Your sister will always be there for you.", "Your grandparents love you dearly!",
+    "Don't be afraid, I'm here for you.", "The dark can be scary, but you're safe.", "You're never truly alone, I'm right here.", "Failure is just a step to success.", "Trying new things is brave!",
+    "You're not alone, I'm right here.", "I understand, and I'm here for you.", "I see you, and you are important.", "You are not forgotten.", "You are loved.",
+    "That’s wonderful! Tell me more!", "I'm so happy for you!", "You should be proud of yourself!", "You are deeply loved.", "Your kindness is appreciated.",
+    "I'm sorry you're feeling this way. I'm here for you.", "It's okay to feel sad sometimes.", "Emotions come and go, and you're not alone.", "Crying can help, let it out.", "You're stronger than you know.",
+    "Take deep breaths, you’ll get through this.", "School can be stressful, but you’re capable.", "True friends care about you.", "The future is uncertain, but you're capable.", "Taking care of yourself is important.",
+]
+
+# Function to preprocess text
+def preprocess(text):
+    text = text.lower().replace("'", "")  # Remove apostrophes
+    words = text.split()
+    return [word for word in words if word not in STOPWORDS]  # Remove stopwords
+
+# Function to calculate cosine similarity
+def cosine_similarity(text1, text2):
+    words1 = preprocess(text1)
+    words2 = preprocess(text2)
+
+    # Create word frequency dictionaries
+    word_set = set(words1 + words2)
+    vector1 = {word: words1.count(word) for word in word_set}
+    vector2 = {word: words2.count(word) for word in word_set}
+
+    # Compute dot product
+    dot_product = sum(vector1[word] * vector2[word] for word in word_set)
+
+    # Compute magnitudes
+    magnitude1 = math.sqrt(sum(vector1[word]**2 for word in word_set))
+    magnitude2 = math.sqrt(sum(vector2[word]**2 for word in word_set))
+
+    return dot_product / (magnitude1 * magnitude2) if magnitude1 and magnitude2 else 0
+
+# Find best response
+def get_response(user_input):
+    best_match = None
+    max_similarity = 0.1  # Adjusted threshold for better accuracy
+
+    for training_text, response in zip(training_texts, responses):
+        similarity = cosine_similarity(user_input, training_text)
+        if similarity > max_similarity:
+            max_similarity = similarity
+            best_match = response
+
+    return best_match if best_match else "Sorry, I didn't quite catch that."
+
+# Main loop
+if __name__ == "__main__":
+    while True:
+        user_input = input("Type your prompt: ").strip()
+        if user_input.lower() == "exit":
+            print("Goodbye!")
+            break
+        print("Response:", get_response(user_input))
