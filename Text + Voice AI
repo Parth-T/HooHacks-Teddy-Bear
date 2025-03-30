@@ -1,0 +1,183 @@
+
+import speech_recognition as sr
+import pyttsx3
+import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.svm import SVC
+import serial
+import time
+
+# Load the pulse oximeter data from Arduino
+ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+time.sleep(2)
+
+# Initialize speech recognition
+recognizer = sr.Recognizer()
+engine = pyttsx3.init()
+
+# Define training data for AI responses
+training_texts = [
+    "I miss my mom", "I'm scared", "I feel lonely", "I'm happy", "I'm sad", "I'm excited",
+    "I'm anxious", "I'm frustrated", "I'm bored", "I'm tired", "I feel hopeless", "I feel overwhelmed",
+    "I feel sick", "I'm in pain", "I'm feeling lost", "I'm feeling grateful", "I feel loved",
+    "I feel ignored", "I feel discouraged", "I feel confident", "I'm feeling creative",
+    "I feel trapped", "I feel free", "I'm feeling optimistic", "I'm feeling nostalgic",
+    "I'm feeling guilty", "I'm feeling embarrassed", "I feel proud", "I feel motivated",
+    "I'm feeling insecure", "I feel safe", "I feel uncomfortable", "I feel hopeful",
+    "I feel restless", "I'm feeling peaceful", "I'm feeling empty", "I feel unwanted",
+    "I feel appreciated", "I feel nervous", "I feel heartbroken", "I'm feeling inspired",
+    "I'm feeling jealous", "I'm feeling envious", "I'm feeling rejected", "I'm feeling content",
+    "I feel confused", "I feel determined", "I feel powerful", "I feel weak", "I feel strong",
+    "I'm feeling adventurous", "I feel betrayed", "I feel relieved", "I'm feeling doubtful",
+    "I feel capable", "I feel uncertain", "I feel brave", "I feel defeated", "I feel respected",
+    "I'm feeling understood", "I'm feeling unheard", "I feel trapped in my thoughts",
+    "I'm feeling misunderstood", "I'm feeling unheard", "I feel isolated", "I feel connected",
+    "I feel detached", "I feel at peace", "I feel anxious about my future", "I'm scared of failing",
+    "I'm scared of rejection", "I feel like giving up", "I feel like I'm not enough",
+    "I feel like I'm being judged", "I'm worried about my family", "I'm worried about my health",
+    "I'm worried about my exams", "I'm worried about my job", "I'm worried about my relationship",
+    "I feel like a burden", "I feel like I'm running out of time", "I feel like I don't belong",
+    "I feel like I'm being ignored", "I'm struggling to find motivation", "I'm struggling to focus",
+    "I'm struggling with my mental health", "I'm struggling with self-doubt", "I'm struggling to move on",
+    "I'm struggling with change", "I'm struggling to sleep", "I'm struggling with my emotions",
+    "I feel like I can't do anything right", "I feel like I'm stuck in a rut", "I feel like my efforts go unnoticed",
+    "I feel like I'm falling behind", "I feel like I'm failing at life"
+]
+
+responses = [
+    "It's okay, sweetheart. Mom will be back soon!", 
+    "Don't be afraid, I'm here for you.", 
+    "You're not alone, I'm right here.", 
+    "That’s wonderful! Tell me more!", 
+    "I'm sorry you're feeling this way. I'm here for you.",
+    "Take deep breaths, you’ll get through this.",
+    "It’s okay to feel frustrated. Want to talk about it?",
+    "Let's find something fun to do together!",
+    "Maybe a short rest will help you feel better.",
+    "You are stronger than you think.",
+    "It’s okay to feel lost sometimes. You’ll find your way.",
+    "Your gratitude is beautiful! What are you thankful for?",
+    "You deserve love and kindness.",
+    "Feeling ignored is tough. I see you, and I care.",
+    "Even in tough times, you have incredible strength.",
+    "Confidence looks good on you!", 
+    "Creativity flows when you let yourself explore.",
+    "Freedom is a gift. What makes you feel alive?",
+    "Optimism will carry you far. Keep believing!",
+    "Nostalgia can be bittersweet. Want to share a memory?",
+    "It’s okay to make mistakes. You’re human.",
+    "Pride in yourself is well deserved! Keep going.",
+    "Your motivation is inspiring! What’s your next goal?",
+    "Feeling insecure is normal, but you are enough.",
+    "You are safe. I’m here with you.",
+    "Sometimes, discomfort helps us grow. What’s on your mind?",
+    "Hope is a powerful thing. Hold onto it.",
+    "If you’re restless, maybe a walk will help?",
+    "Peace of mind is valuable. Hold onto that calm.",
+    "Emptiness can feel heavy. Let’s fill it with something good.",
+    "You are wanted, you are valued.",
+    "You deserve to feel appreciated. You matter.",
+    "It’s natural to feel nervous. You’ll do great!",
+    "Heartbreak is painful, but you will heal.",
+    "Inspiration is a beautiful thing! What sparked it?",
+    "Jealousy is normal, but don’t let it define you.",
+    "Rejection hurts, but it does not define your worth.",
+    "Contentment is a beautiful feeling. Hold onto it!",
+    "Confusion is the first step to clarity.",
+    "Determination will take you far. Keep pushing forward.",
+    "You are powerful beyond measure.",
+    "Even in weakness, you are strong.",
+    "Strength isn’t just physical. Your resilience is amazing.",
+    "Adventure awaits! What’s your next journey?",
+    "Betrayal is painful, but trust will find its way back.",
+    "Relief is a great feeling. Enjoy the peace.",
+    "Doubt is part of growth. Keep moving forward.",
+    "You are more capable than you know.",
+    "Uncertainty is temporary. Trust the process.",
+    "Bravery is in taking the first step.",
+    "Defeat is just a lesson in disguise.",
+    "Respect is earned, and you have mine.",
+    "Being understood is important. I hear you.",
+    "Your voice matters. I’m listening.",
+    "Sometimes, overthinking can feel like a trap. Let’s clear your mind.",
+    "Feeling unheard can be frustrating. I hear you loud and clear.",
+    "Isolation is tough. I’m here to remind you that you’re not alone.",
+    "Connection brings joy. What brings you closer to others?",
+    "Detachment can be a defense. What’s on your mind?",
+    "Peace is a gift. Enjoy every moment of it.",
+    "The future is uncertain, but you are capable.",
+    "Failure is a stepping stone to success.",
+    "Rejection is redirection to something better.",
+    "Giving up isn’t the answer. You are stronger than you know.",
+    "You are more than enough.",
+    "Judgment from others does not define you.",
+    "Your family cares about you. Let’s talk about it.",
+    "Health is important. Take care of yourself.",
+    "Exams are stressful, but you’ve got this!"
+]
+
+
+vectorizer = TfidfVectorizer()
+X_train = vectorizer.fit_transform(training_texts)
+y_train = np.arange(len(training_texts))
+
+classifier = SVC(kernel='linear')
+classifier.fit(X_train, y_train)
+
+def get_pulse_data():
+    ser.write(b'READ\n')
+    data = ser.readline().decode('utf-8').strip()
+    if data:
+        try:
+            pulse = int(data)
+            return pulse
+        except ValueError:
+            return None
+    return None
+
+def recognize_speech():
+    with sr.Microphone() as source:
+        recognizer.adjust_for_ambient_noise(source)
+        print("Listening...")
+        audio = recognizer.listen(source)
+        try:
+            text = recognizer.recognize_google(audio)
+            return text.lower()
+        except sr.UnknownValueError:
+            return ""
+        except sr.RequestError:
+            return ""
+
+def get_response(text):
+    text_vector = vectorizer.transform([text])
+    prediction = classifier.predict(text_vector)
+    return responses[prediction[0]]
+
+def set_voice_tone(pulse_rate):
+    if pulse_rate is None:
+        return
+    
+    rate = 150
+    volume = 0.8
+    if pulse_rate < 60:
+        rate = 120
+        volume = 0.6
+    elif pulse_rate > 100:
+        rate = 180
+        volume = 1.0
+    
+    engine.setProperty('rate', rate)
+    engine.setProperty('volume', volume)
+
+def speak(text):
+    pulse_rate = get_pulse_data()
+    set_voice_tone(pulse_rate)
+    engine.say(text)
+    engine.runAndWait()
+
+if __name__ == "__main__":
+    while True:
+        text = recognize_speech()
+        if text:
+            response = get_response(text)
+            speak(response)
